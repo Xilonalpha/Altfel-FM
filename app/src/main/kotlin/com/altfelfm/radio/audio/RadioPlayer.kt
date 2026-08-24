@@ -1,6 +1,8 @@
 package com.altfelfm.radio.audio
 
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -41,6 +43,14 @@ class RadioPlayer(private val context: Context) {
 
     fun play(quality: StreamQuality = _currentQuality.value) {
         _currentQuality.value = quality
+        
+        val serviceIntent = Intent(context, RadioService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(serviceIntent)
+        } else {
+            context.startService(serviceIntent)
+        }
+
         exoPlayer?.let { player ->
             player.stop()
             player.clearMediaItems()

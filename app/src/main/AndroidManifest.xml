@@ -27,13 +27,9 @@
         </activity>
 
         <service
-            android:name="androidx.media3.session.MediaSessionService"
-            android:exported="true"
-            android:foregroundServiceType="mediaPlayback">
-            <intent-filter>
-                <action android:name="androidx.media3.session.MediaSessionService" />
-            </intent-filter>
-        </service>
+            android:name=".audio.RadioService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 
 </manifest>

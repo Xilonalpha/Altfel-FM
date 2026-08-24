@@ -54,7 +54,6 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(player: RadioPlayer) {
     val isPlaying by player.isPlaying.collectAsState()
     val currentQuality by player.currentQuality.collectAsState()
-    val audioSessionId by player.audioSessionId.collectAsState()
 
     var colorIndex by remember { mutableIntStateOf(0) }
     val colorPalettes = listOf(
@@ -97,7 +96,6 @@ fun MainScreen(player: RadioPlayer) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Player Top Section
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -145,19 +143,16 @@ fun MainScreen(player: RadioPlayer) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Visualizer-ul Audio Original
-                if (audioSessionId != 0) {
-                    AndroidView(
-                        factory = { context -> AudioVisualizer(context) },
-                        update = { visualizer -> visualizer.setAudioSessionId(audioSessionId) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(80.dp)
-                    )
-                }
+                // Apelăm corect Visualizer-ul Composable
+                AudioVisualizer(
+                    isPlaying = isPlaying,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp)
+                )
             }
 
-            // Chat Fitted WebView
+            // Widget Chat optimizat
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
