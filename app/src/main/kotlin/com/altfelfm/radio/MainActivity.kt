@@ -1,327 +1,175 @@
 package com.altfelfm.radio
 
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.altfelfm.radio.audio.AudioVisualizer
+import androidx.compose.ui.viewinterop.AndroidView
 import com.altfelfm.radio.audio.RadioPlayer
 import com.altfelfm.radio.audio.StreamQuality
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
-    // Cerem ambele permisiuni deodată: POST_NOTIFICATIONS (pt. notificarea de redare) și
-    // RECORD_AUDIO (obligatorie pentru android.media.audiofx.Visualizer - fără ea,
-    // vizualizatorul rămâne inactiv, dar NU trece pe date simulate).
-    private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* RadioPlayer verifică singur permisiunea la fiecare play(), nu e nevoie de acțiune aici */ }
+    private lateinit var radioPlayer: RadioPlayer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-
-        val toRequest = mutableListOf<String>()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                toRequest += Manifest.permission.POST_NOTIFICATIONS
-            }
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            toRequest += Manifest.permission.RECORD_AUDIO
-        }
-        if (toRequest.isNotEmpty()) {
-            permissionLauncher.launch(toRequest.toTypedArray())
-        }
+        radioPlayer = RadioPlayer(this)
 
         setContent {
-            AltfelRadioApp()
+            MaterialTheme {
+                MainScreen(radioPlayer)
+            }
         }
     }
-}
 
-@Composable
-fun AltfelRadioApp(
-    viewModel: RadioViewModel = viewModel()
-) {
-    val context = LocalContext.current
-    // FIX: în varianta originală RadioViewModel.initializePlayer() exista dar nu era
-    // apelat niciodată - radioPlayer rămânea null, deci play() nu pornea nimic.
-    LaunchedEffect(Unit) {
-        viewModel.initializePlayer(context)
-    }
-
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = Color(0xFF6200EE),
-            secondary = Color(0xFF03DAC6),
-            tertiary = Color(0xFF1F1F1F),
-            background = Color(0xFF121212),
-            surface = Color(0xFF1E1E1E),
-        )
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            RadioScreen(viewModel)
-        }
+    override fun onDestroy() {
+        super.onDestroy()
+        radioPlayer.release()
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RadioScreen(viewModel: RadioViewModel) {
-    var showQualityMenu by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+fun MainScreen(player: RadioPlayer) {
+    val isPlaying by player.isPlaying.collectAsState()
+    val currentQuality by player.currentQuality.collectAsState()
 
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val currentQuality by viewModel.currentQuality.collectAsState()
-    val stationName by viewModel.stationName.collectAsState()
+    // Grafica dinamica / Schimbare culori fundal la fiecare interval de timp
+    var colorIndex by remember { mutableIntStateOf(0) }
+    val colorPalettes = listOf(
+        listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)),
+        listOf(Color(0xFF2C3E50), Color(0xFF000000), Color(0xFF4CA1AF)),
+        listOf(Color(0xFF11998E), Color(0xFF38EF7D), Color(0xFF050505)),
+        listOf(Color(0xFF8A2387), Color(0xFFE94057), Color(0xFF121212))
+    )
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        TopAppBar(
-            title = {
-                Text(
-                    "Altfel FM",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF6200EE)
-                )
-            },
-            actions = {
-                Box {
-                    IconButton(onClick = { showQualityMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Quality")
-                    }
-                    DropdownMenu(
-                        expanded = showQualityMenu,
-                        onDismissRequest = { showQualityMenu = false }
-                    ) {
-                        StreamQuality.values().forEach { quality ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        quality.displayName,
-                                        fontSize = 14.sp
-                                    )
-                                },
-                                onClick = {
-                                    scope.launch {
-                                        viewModel.changeQuality(quality)
-                                    }
-                                    showQualityMenu = false
-                                }
-                            )
-                        }
-                    }
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent,
-                titleContentColor = Color.White
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            delay(8000)
+            colorIndex = (colorIndex + 1) % colorPalettes.size
+        }
+    }
+
+    val startColor by animateColorAsState(
+        targetValue = colorPalettes[colorIndex][0],
+        animationSpec = tween(durationMillis = 2000), label = "startColor"
+    )
+    val endColor by animateColorAsState(
+        targetValue = colorPalettes[colorIndex][1],
+        animationSpec = tween(durationMillis = 2000), label = "endColor"
+    )
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Altfel FM", fontWeight = FontWeight.Bold, color = Color.White) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF121212))
             )
-        )
-
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxSize()
+                .padding(padding)
+                .background(Brush.verticalGradient(listOf(startColor, endColor, Color.Black)))
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            AudioVisualizerComponent(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .padding(16.dp),
-                isPlaying = isPlaying,
-                magnitudesFlow = viewModel.fftMagnitudes
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Text(
-                stationName,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-
-            Text(
-                "Live Stream",
-                fontSize = 14.sp,
-                color = Color(0xFF03DAC6)
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Card(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF2A2A2A)
-                )
+            // Player Controls & Quality Selector
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    "Calitate: ${currentQuality.displayName}",
+                    text = if (isPlaying) "În Redare..." else "Oprit",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Play / Pause Button
+                IconButton(
+                    onClick = { player.togglePlay() },
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(16.dp),
-                    fontSize = 16.sp,
-                    color = Color(0xFF03DAC6),
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
+                        .size(72.dp)
+                        .background(Color(0xFFFF0055), shape = RoundedCornerShape(36.dp))
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = "Play/Pause",
+                        tint = Color.White,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Button(
-                onClick = {
-                    if (isPlaying) {
-                        viewModel.stop()
-                    } else {
-                        viewModel.play()
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Butoane Calitate 328kbps si 128kbps
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = { player.setQuality(StreamQuality.HIGH) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (currentQuality == StreamQuality.HIGH) Color(0xFFFF0055) else Color.DarkGray
+                        )
+                    ) {
+                        Text("328 kbps")
                     }
-                },
-                modifier = Modifier.size(80.dp),
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6200EE)
-                )
+
+                    Button(
+                        onClick = { player.setQuality(StreamQuality.LOW) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (currentQuality == StreamQuality.LOW) Color(0xFFFF0055) else Color.DarkGray
+                        )
+                    ) {
+                        Text("128 kbps")
+                    }
+                }
+            }
+
+            // Widget Chat Compact (Max Height 260dp, nu acopera tot ecranul)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(260.dp)
+                    .clip(RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xAA1E1E1E))
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pauză" else "Play",
-                    modifier = Modifier.size(40.dp),
-                    tint = Color.White
+                AndroidView(
+                    factory = { context ->
+                        WebView(context).apply {
+                            webViewClient = WebViewClient()
+                            settings.javaScriptEnabled = true
+                            loadUrl("https://altfelfm.ro/chat")
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
-
-        Spacer(modifier = Modifier.height(20.dp))
-    }
-}
-
-@Composable
-fun AudioVisualizerComponent(
-    modifier: Modifier = Modifier,
-    isPlaying: Boolean,
-    magnitudesFlow: StateFlow<FloatArray?>
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A)),
-        shape = MaterialTheme.shapes.large
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            AudioVisualizer(
-                modifier = Modifier.fillMaxSize(),
-                isPlaying = isPlaying,
-                magnitudesFlow = magnitudesFlow
-            )
-        }
-    }
-}
-
-class RadioViewModel : ViewModel() {
-    private val _isPlaying = MutableStateFlow(false)
-    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
-
-    private val _currentQuality = MutableStateFlow(StreamQuality.QUALITY_320)
-    val currentQuality: StateFlow<StreamQuality> = _currentQuality.asStateFlow()
-
-    private val _stationName = MutableStateFlow("Altfel FM")
-    val stationName: StateFlow<String> = _stationName.asStateFlow()
-
-    // Date FFT REALE, populate direct din callback-ul android.media.audiofx.Visualizer
-    // (vezi RadioPlayer). Rămâne null cât timp nu se redă nimic.
-    private val _fftMagnitudes = MutableStateFlow<FloatArray?>(null)
-    val fftMagnitudes: StateFlow<FloatArray?> = _fftMagnitudes.asStateFlow()
-
-    private var radioPlayer: RadioPlayer? = null
-
-    fun initializePlayer(context: Context) {
-        if (radioPlayer == null) {
-            radioPlayer = RadioPlayer(context) { magnitudes ->
-                _fftMagnitudes.value = magnitudes
-            }
-        }
-    }
-
-    fun play() {
-        radioPlayer?.play(_currentQuality.value)
-        _isPlaying.value = true
-    }
-
-    fun stop() {
-        radioPlayer?.stop()
-        _isPlaying.value = false
-        _fftMagnitudes.value = null
-    }
-
-    suspend fun changeQuality(quality: StreamQuality) {
-        val wasPlaying = _isPlaying.value
-        if (wasPlaying) {
-            radioPlayer?.stop()
-        }
-        _currentQuality.value = quality
-        if (wasPlaying) {
-            radioPlayer?.play(quality)
-        }
-    }
-
-    override fun onCleared() {
-        radioPlayer?.release()
-        super.onCleared()
     }
 }
