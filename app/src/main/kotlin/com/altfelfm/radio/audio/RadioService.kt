@@ -22,33 +22,25 @@ class RadioService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
-        startForeground(1, createNotification())
-    }
-
-    private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 "radio_channel",
-                "Altfel FM Playback",
+                "Altfel FM",
                 NotificationManager.IMPORTANCE_LOW
             )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager?.createNotificationChannel(channel)
+            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }
     }
 
-    private fun createNotification(): Notification {
-        return NotificationCompat.Builder(this, "radio_channel")
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val notification: Notification = NotificationCompat.Builder(this, "radio_channel")
             .setContentTitle("Altfel FM")
-            .setContentText("Redare în fundal...")
+            .setContentText("Redare audio în fundal")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
             .build()
-    }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(1, notification)
         return START_STICKY
     }
 }

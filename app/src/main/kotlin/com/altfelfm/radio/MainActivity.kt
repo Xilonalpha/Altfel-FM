@@ -96,6 +96,7 @@ fun MainScreen(player: RadioPlayer) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
+            // Controale Player Nativ
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -141,30 +142,39 @@ fun MainScreen(player: RadioPlayer) {
                     ) { Text("128 kbps") }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
+                // Equalizer / Vizualizator Nativ
                 AudioVisualizer(
                     isPlaying = isPlaying,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(60.dp)
+                        .height(50.dp)
                 )
             }
 
+            // Caseta Chat - Se ascund bannerele si playerul de pe site prin JavaScript
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .height(300.dp)
                     .clip(RoundedCornerShape(16.dp)),
-                colors = CardDefaults.cardColors(containerColor = Color(0xAA1E1E1E))
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E))
             ) {
                 AndroidView(
                     factory = { context ->
                         WebView(context).apply {
-                            webViewClient = WebViewClient()
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    // Ascunde tot ce nu este chat de pe pagina web
+                                    evaluateJavascript(
+                                        "document.querySelectorAll('.player, .banner, header, footer').forEach(e => e.style.display='none');",
+                                        null
+                                    )
+                                }
+                            }
                             settings.javaScriptEnabled = true
-                            settings.useWideViewPort = true
-                            settings.loadWithOverviewMode = true
+                            settings.domStorageEnabled = true
                             loadUrl("https://altfelfm.ro/chat")
                         }
                     },
