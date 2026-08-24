@@ -13,13 +13,12 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AltfelFM"
+        android:theme="@android:style/Theme.Material.NoTitleBar"
         android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:theme="@style/Theme.AltfelFM">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
