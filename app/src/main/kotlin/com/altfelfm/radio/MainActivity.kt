@@ -60,8 +60,7 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(player: RadioPlayer) {
     val isPlaying by player.isPlaying.collectAsState()
     val currentQuality by player.currentQuality.collectAsState()
-
-    var songTitle by remember { mutableStateOf("Gata să asculți") }
+    var songTitle by remember { mutableStateOf("Se încarcă piesa...") }
 
     // Preia piesă live la fiecare 5 secunde
     LaunchedEffect(Unit) {
@@ -71,37 +70,32 @@ fun MainScreen(player: RadioPlayer) {
                     val jsonText = URL("https://live.altfelfm.ro:8120/stats?sid=1&json=1").readText()
                     val json = JSONObject(jsonText)
                     if (json.has("songtitle")) {
-                        songTitle = json.getString("songtitle")
+                        val title = json.getString("songtitle")
+                        if (title.isNotEmpty()) songTitle = title
                     }
                 }
             } catch (e: Exception) {
-                // Fallback direct
+                // Păstrează titlul existent
             }
             delay(5000)
         }
     }
 
-    var colorIndex by remember { mutableIntStateOf(0) }
+    // Schimbare de fundal pe melodie nouă
+    var paletteIndex by remember(songTitle) { mutableIntStateOf((0..2).random()) }
     val colorPalettes = listOf(
         listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)),
-        listOf(Color(0xFF1F1C2C), Color(0xFF928DAB), Color(0xFF101010)),
+        listOf(Color(0xFF1F1C2C), Color(0xFF4A0E17), Color(0xFF101010)),
         listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460))
     )
 
-    LaunchedEffect(isPlaying) {
-        while (isPlaying) {
-            delay(8000)
-            colorIndex = (colorIndex + 1) % colorPalettes.size
-        }
-    }
-
     val startColor by animateColorAsState(
-        targetValue = colorPalettes[colorIndex][0],
-        animationSpec = tween(durationMillis = 2000), label = "startColor"
+        targetValue = colorPalettes[paletteIndex][0],
+        animationSpec = tween(1500), label = "startColor"
     )
     val endColor by animateColorAsState(
-        targetValue = colorPalettes[colorIndex][1],
-        animationSpec = tween(durationMillis = 2000), label = "endColor"
+        targetValue = colorPalettes[paletteIndex][1],
+        animationSpec = tween(1500), label = "endColor"
     )
 
     Scaffold(
@@ -111,7 +105,7 @@ fun MainScreen(player: RadioPlayer) {
                     Text(
                         "Altfel FM", 
                         fontWeight = FontWeight.Bold, 
-                        fontSize = 24.sp,
+                        fontSize = 22.sp,
                         color = Color.White,
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center
@@ -127,79 +121,73 @@ fun MainScreen(player: RadioPlayer) {
                 .fillMaxSize()
                 .padding(padding)
                 .background(Brush.verticalGradient(listOf(startColor, endColor, Color.Black)))
-                .padding(horizontal = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Player Circular Nativ
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
+            Text(
+                text = songTitle,
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(200.dp)
             ) {
-                Text(
-                    text = songTitle,
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                CircularAudioVisualizer(
+                    isPlaying = isPlaying,
+                    songTitle = songTitle,
+                    modifier = Modifier.fillMaxSize()
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(220.dp)
+                IconButton(
+                    onClick = { player.togglePlay() },
+                    modifier = Modifier
+                        .size(100.dp)
+                        .background(Color(0xFFFF0055), shape = CircleShape)
                 ) {
-                    CircularAudioVisualizer(
-                        isPlaying = isPlaying,
-                        modifier = Modifier.fillMaxSize()
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = "Play/Pause",
+                        tint = Color.White,
+                        modifier = Modifier.size(54.dp)
                     )
-
-                    IconButton(
-                        onClick = { player.togglePlay() },
-                        modifier = Modifier
-                            .size(110.dp)
-                            .background(Color(0xFFFF0055), shape = CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Play/Pause",
-                            tint = Color.White,
-                            modifier = Modifier.size(60.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Button(
-                        onClick = { player.setQuality(StreamQuality.HIGH) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (currentQuality == StreamQuality.HIGH) Color(0xFFFF0055) else Color.White.copy(alpha = 0.2f)
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    ) { Text("328 kbps", fontWeight = FontWeight.Bold) }
-
-                    Button(
-                        onClick = { player.setQuality(StreamQuality.LOW) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (currentQuality == StreamQuality.LOW) Color(0xFFFF0055) else Color.White.copy(alpha = 0.2f)
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    ) { Text("128 kbps", fontWeight = FontWeight.Bold) }
                 }
             }
 
-            // Chat Izolat (Se ascund automat toate celelalte elemente web)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = { player.setQuality(StreamQuality.HIGH) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (currentQuality == StreamQuality.HIGH) Color(0xFFFF0055) else Color.White.copy(alpha = 0.2f)
+                    ),
+                    shape = RoundedCornerShape(20.dp)
+                ) { Text("328 kbps", fontWeight = FontWeight.Bold) }
+
+                Button(
+                    onClick = { player.setQuality(StreamQuality.LOW) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (currentQuality == StreamQuality.LOW) Color(0xFFFF0055) else Color.White.copy(alpha = 0.2f)
+                    ),
+                    shape = RoundedCornerShape(20.dp)
+                ) { Text("128 kbps", fontWeight = FontWeight.Bold) }
+            }
+
+            // Chat integrat
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(top = 16.dp, bottom = 12.dp)
-                    .clip(RoundedCornerShape(24.dp)),
-                colors = CardDefaults.cardColors(containerColor = Color(0x22000000))
+                    .padding(top = 12.dp, bottom = 8.dp)
+                    .clip(RoundedCornerShape(20.dp)),
+                colors = CardDefaults.cardColors(containerColor = Color(0x33000000))
             ) {
                 AndroidView(
                     factory = { context ->
@@ -207,7 +195,6 @@ fun MainScreen(player: RadioPlayer) {
                             setBackgroundColor(0x00000000)
                             webViewClient = object : WebViewClient() {
                                 override fun onPageFinished(view: WebView?, url: String?) {
-                                    // Injectăm CSS ca să păstrăm exclusiv blocul de chat
                                     evaluateJavascript(
                                         """
                                         (function() {
