@@ -1,0 +1,62 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    ACTUALIZARE URLs STREAMING - AUGUST 2026
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ URLs ACTUALIZATE:
+
+Versiunea 320 kbps:
+http://live.altfelfm.ro:8120/320.mp3
+
+Versiunea 128 kbps:
+http://live.altfelfm.ro:8120/128.mp3
+
+═══════════════════════════════════════════════════════════════════════════════
+
+MODIFICĂRI ÎN COD:
+
+1️⃣  RadioPlayer.kt
+   - Enum StreamQuality actualizat cu URL-uri reale
+   - 2 opțiuni de calitate: 320 kbps și 128 kbps
+   - buildStreamUrl() simplifică la streamUrl direct
+
+2️⃣  AndroidManifest.xml
+   - Adăugat: android:networkSecurityConfig="@xml/network_security_config"
+   - Permite HTTP (cleartext) pentru live.altfelfm.ro
+
+3️⃣  network_security_config.xml (NOU)
+   - Configurare sigură pentru HTTP pe domeniul Altfel FM
+   - Trebuie copiat în: app/src/main/res/xml/network_security_config.xml
+
+═══════════════════════════════════════════════════════════════════════════════
+
+SETUP FINAL:
+
+1. Copiază network_security_config.xml în:
+   app/src/main/res/xml/network_security_config.xml
+   
+   (Crează folderul /xml dacă nu există)
+
+2. Copiază celelalte fișiere normal (înlocuiesc versiunile vechi)
+
+3. Sync & Run ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TESTARE:
+
+- Apasă Play
+- Selectează 320 kbps din menu
+- Ar trebui să se audă stream-ul
+- Schimbă la 128 kbps
+- Ambele ar trebui să funcționeze
+
+═══════════════════════════════════════════════════════════════════════════════
+
+NOTE:
+
+✓ URL-urile sunt HTTP, nu HTTPS
+✓ network_security_config permite accesul HTTP sigur
+✓ Doar 2 calități acum (nu 3)
+✓ Vizualizatorul funcționează la fel
+
+═══════════════════════════════════════════════════════════════════════════════

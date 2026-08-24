@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="altfel_primary">#6200EE</color>
+    <color name="altfel_secondary">#03DAC6</color>
+    <color name="altfel_tertiary">#1F1F1F</color>
+    <color name="altfel_background">#121212</color>
+    <color name="altfel_surface">#1E1E1E</color>
+</resources>

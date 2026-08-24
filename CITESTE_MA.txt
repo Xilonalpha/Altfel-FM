@@ -1,0 +1,105 @@
+═══════════════════════════════════════════════════════════════════════════════
+              ALTFEL FM - PROIECT ANDROID COMPLETAT
+═══════════════════════════════════════════════════════════════════════════════
+
+Acest folder este acum un proiect Android Studio COMPLET și STRUCTURAT corect,
+gata de deschis direct cu "Open" din Android Studio (nu mai trebuie creat un
+proiect nou și copiate fișiere manual, ca în COPY_INSTRUCTIONS_ORIGINAL.txt).
+
+CE LIPSEA DIN ARHIVA ORIGINALĂ ȘI A FOST CREAT:
+
+1. Fișiere Gradle de nivel root (proiectul nu se putea deschide fără ele):
+   - settings.gradle.kts
+   - build.gradle.kts (root)
+   - gradle.properties
+   - gradle/libs.versions.toml (build.gradle.kts folosea libs.plugins.*
+     dar catalogul de versiuni nu exista)
+   - gradle/wrapper/gradle-wrapper.properties
+
+2. Resurse referențiate în AndroidManifest.xml dar absente din arhivă:
+   - res/values/themes.xml -> definește Theme.AltfelRadio (folosit în manifest
+     și în MainActivity.kt, dar nedefinit nicăieri)
+   - res/values/colors.xml -> culorile Altfel FM (pentru consistență cu paleta
+     folosită deja în cod: #6200EE, #03DAC6, #121212 etc.)
+   - res/xml/data_extraction_rules.xml
+   - res/xml/backup_rules.xml
+
+3. app/proguard-rules.pro -> referențiat în build.gradle.kts (buildTypes.release)
+   dar lipsă din arhivă.
+
+4. Structura de foldere corectă a fost creată (fișierele erau "vărsate" plat
+   în arhivă, nu în structura standard Gradle):
+   - app/src/main/kotlin/com/altfelfm/radio/MainActivity.kt
+   - app/src/main/kotlin/com/altfelfm/radio/audio/RadioPlayer.kt
+   - app/src/main/kotlin/com/altfelfm/radio/audio/AudioVisualizer.kt
+   - app/src/main/res/values/strings.xml
+   - app/src/main/res/xml/network_security_config.xml
+   - app/src/main/res/mipmap-*/ic_launcher.png
+
+CUM DESCHIZI PROIECTUL:
+
+1. Android Studio -> File -> Open -> selectează folderul AltfelRadio
+2. Așteaptă Gradle Sync (prima dată descarcă automat Gradle Wrapper-ul,
+   deci ai nevoie de conexiune la internet)
+3. Run -> Run 'app'
+
+NOTĂ despre minSdk = 36: fișierul altfel_radio_build.gradle.kts original are
+minSdk/targetSdk/compileSdk = 36 (Android 16, versiune foarte recentă/încă
+neconfirmată public la data creării arhivei). Dacă Gradle Sync eșuează din
+cauza acestui SDK, scade valorile la un compileSdk existent (ex. 34 sau 35)
+în app/build.gradle.kts.
+
+Fișierele originale ACTUALIZARE_URLS.txt și COPY_INSTRUCTIONS_ORIGINAL.txt
+sunt păstrate în acest folder doar ca referință istorică.
+═══════════════════════════════════════════════════════════════════════════════
+
+                    ACTUALIZARE 2: VIZUALIZATOR AUDIO REAL
+═══════════════════════════════════════════════════════════════════════════════
+
+Vizualizatorul original (AudioVisualizer.kt) folosea Random.nextFloat() -
+mișcarea grafică nu avea nicio legătură cu sunetul redat. A fost înlocuit
+cu date audio REALE, astfel:
+
+1. AndroidManifest.xml
+   - Adăugat permisiunea RECORD_AUDIO. E cerută de Android pentru orice
+     folosire a Visualizer, chiar dacă nu se înregistrează/stochează nimic -
+     Visualizer doar citește bufferul de redare al aplicației înseși.
+
+2. RadioPlayer.kt
+   - Se creează un android.media.audiofx.Visualizer legat de
+     exoPlayer.audioSessionId (sesiunea audio reală a stream-ului redat,
+     nu session 0/master mix).
+   - setDataCaptureListener primește cadre FFT live (spectru de frecvențe)
+     direct din sunetul care se redă.
+   - Se calculează magnitudinea reală (sqrt(Re^2+Im^2)) pentru fiecare bandă
+     de frecvență și se trimite mai departe prin callback.
+   - Dacă permisiunea RECORD_AUDIO nu e acordată, Visualizer pur și simplu
+     nu pornește - NU există fallback pe date simulate.
+
+3. AudioVisualizer.kt
+   - Barele vizuale sunt calculate din magnitudinile FFT reale, grupate
+     logaritmic pe 64 de bare (mai multă rezoluție pe frecvențele joase,
+     ca la orice egalizor grafic clasic).
+   - Auto-gain: normalizare după un maxim recent cu decădere lentă, pentru
+     că volumul brut al stream-ului radio variază constant.
+   - Cât timp nu există date reale (buffering, fără permisiune, oprit),
+     barele se relaxează spre aproape-plat - nu se generează nicio
+     animație de umplutură.
+
+4. MainActivity.kt
+   - S-a reparat un bug real din codul original: RadioViewModel avea o
+     funcție initializePlayer(context) care NU era apelată niciodată
+     nicăieri, deci playerul audio nu pornea deloc, indiferent de
+     vizualizator. Acum se apelează la pornirea ecranului (LaunchedEffect).
+   - Se cere acum și permisiunea RECORD_AUDIO la pornire, alături de
+     POST_NOTIFICATIONS.
+   - fftMagnitudes (StateFlow<FloatArray?>) e expus din ViewModel spre
+     AudioVisualizer, populat direct din callback-ul RadioPlayer-ului.
+
+IMPORTANT - de ce mockup-ul HTML din chat NU poate demonstra asta:
+Un artifact HTML rulează într-un browser, care nu are acces la sesiunea
+audio a unui player media Android. Dovada reală a reactivității la sunet
+se vede DOAR rulând acest proiect compilat (APK) pe un telefon/emulator
+cu sunet - acolo Visualizer citește efectiv ce iese din difuzor pentru
+stream-ul Altfel FM.
+═══════════════════════════════════════════════════════════════════════════════

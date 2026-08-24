@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Altfel FM</string>
+    <string name="play">Play</string>
+    <string name="pause">Pauză</string>
+    <string name="stop">Stop</string>
+    <string name="quality">Calitate</string>
+    <string name="live_stream">Live Stream</string>
+    <string name="loading">Se încarcă...</string>
+    <string name="error_playback">Eroare la redare</string>
+    <string name="quality_320">320 kbps</string>
+    <string name="quality_129">129 kbps</string>
+    <string name="quality_128">128 kbps</string>
+</resources>

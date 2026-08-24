@@ -1,0 +1,59 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    ALTFEL FM - INTRUCȚIUNI DE COPIERE
+═══════════════════════════════════════════════════════════════════════════════
+
+TOTUL E GATA! Nu trebuie să mai faci nimic special.
+
+1. DESCHIDE ANDROID STUDIO
+   - File → New → New Android Project
+   - Template: Empty Activity
+   - Name: AltfelRadio
+   - Package: com.altfelfm.radio
+   - Min SDK: 36
+   - Language: Kotlin
+
+2. COPIAZĂ FIȘIERELE KOTLIN
+   Din folder: app/src/main/kotlin/com/altfelfm/radio/
+   
+   ✓ MainActivity_FIXED.kt → MainActivity.kt
+   
+   Crează subfolder: audio/
+   ✓ RadioPlayer.kt → audio/RadioPlayer.kt
+   ✓ AudioVisualizer.kt → audio/AudioVisualizer.kt
+
+3. COPIAZĂ ICONUL (GATA REDIMENSIONAT!)
+   Din folder: app/src/main/res/
+   
+   ✓ mipmap-ldpi/ic_launcher.png → mipmap-ldpi/ic_launcher.png
+   ✓ mipmap-mdpi/ic_launcher.png → mipmap-mdpi/ic_launcher.png
+   ✓ mipmap-hdpi/ic_launcher.png → mipmap-hdpi/ic_launcher.png
+   ✓ mipmap-xhdpi/ic_launcher.png → mipmap-xhdpi/ic_launcher.png
+   ✓ mipmap-xxhdpi/ic_launcher.png → mipmap-xxhdpi/ic_launcher.png
+   ✓ mipmap-xxxhdpi/ic_launcher.png → mipmap-xxxhdpi/ic_launcher.png
+
+4. COPIAZĂ CONFIG FILES
+   app/src/main/
+   ✓ AndroidManifest.xml → AndroidManifest.xml
+   
+   app/src/main/res/values/
+   ✓ strings.xml → strings.xml
+
+5. ACTUALIZEAZĂ BUILD FILE
+   app/build.gradle.kts
+   Copiază DEPENDENCIES din: altfel_radio_build.gradle.kts
+
+6. SYNC ȘI RUN
+   File → Sync Now
+   Run → Run 'app'
+
+═══════════════════════════════════════════════════════════════════════════════
+
+ICON-UL E DEJA REDIMENSIONAT!
+✓ ldpi: 36x36 px
+✓ mdpi: 48x48 px
+✓ hdpi: 72x72 px
+✓ xhdpi: 96x96 px
+✓ xxhdpi: 144x144 px
+✓ xxxhdpi: 192x192 px
+
+DOAR COPIAZĂ ȘI GATA! 🎉
