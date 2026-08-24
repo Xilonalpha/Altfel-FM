@@ -154,7 +154,7 @@ fun RadioScreen(viewModel: RadioViewModel) {
                     }
                 }
             },
-            colors = TopAppBarDefaults.smallTopAppBarColors(
+            colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent,
                 titleContentColor = Color.White
             )
