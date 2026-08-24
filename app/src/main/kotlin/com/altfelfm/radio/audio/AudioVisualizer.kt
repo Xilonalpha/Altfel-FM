@@ -8,57 +8,46 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
-fun AudioVisualizer(
+fun CircularAudioVisualizer(
     isPlaying: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "visualizer")
-    
-    val bar1Height by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = if (isPlaying) 0.9f else 0.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 400, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "b1"
-    )
+    val infiniteTransition = rememberInfiniteTransition(label = "circular_visualizer")
 
-    val bar2Height by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
-        targetValue = if (isPlaying) 1.0f else 0.2f,
+    val pulseFactor by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = if (isPlaying) 1.0f else 0.4f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 300, easing = LinearEasing),
+            animation = tween(durationMillis = 500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
-        ), label = "b2"
-    )
-
-    val bar3Height by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = if (isPlaying) 0.8f else 0.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "b3"
+        ), label = "pulse"
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        val width = size.width
-        val height = size.height
-        val barWidth = width / 7
-        val bars = listOf(bar1Height, bar2Height, bar3Height, bar1Height, bar2Height)
+        val center = Offset(size.width / 2, size.height / 2)
+        val radius = (size.width.coerceAtMost(size.height) / 2) - 20.dp.toPx()
+        val barCount = 60
 
-        bars.forEachIndexed { index, animatedFactor ->
-            val x = (index * 1.4f + 0.5f) * barWidth
-            val currentBarHeight = height * animatedFactor
-            val startY = height - currentBarHeight
+        for (i in 0 until barCount) {
+            val angle = Math.toRadians((i * (360.0 / barCount)))
+            val barLength = (15.dp.toPx() + (i % 5 * 6).dp.toPx()) * if (isPlaying) pulseFactor else 0.2f
+
+            val startX = center.x + (radius * cos(angle)).toFloat()
+            val startY = center.y + (radius * sin(angle)).toFloat()
+            val endX = center.x + ((radius + barLength) * cos(angle)).toFloat()
+            val endY = center.y + ((radius + barLength) * sin(angle)).toFloat()
 
             drawLine(
-                color = Color(0xFFFF0055),
-                start = Offset(x, height),
-                end = Offset(x, startY),
-                strokeWidth = barWidth * 0.6f
+                color = Color(0xFFFF0055).copy(alpha = if (isPlaying) 0.85f else 0.3f),
+                start = Offset(startX, startY),
+                end = Offset(endX, endY),
+                strokeWidth = 3.dp.toPx(),
+                cap = StrokeCap.Round
             )
         }
     }

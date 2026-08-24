@@ -1,12 +1,15 @@
 package com.altfelfm.radio
 
 import android.os.Bundle
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
@@ -22,7 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.altfelfm.radio.audio.AudioVisualizer
+import androidx.compose.ui.viewinterop.AndroidView
+import com.altfelfm.radio.audio.CircularAudioVisualizer
 import com.altfelfm.radio.audio.RadioPlayer
 import com.altfelfm.radio.audio.StreamQuality
 import kotlinx.coroutines.Dispatchers
@@ -57,39 +61,21 @@ fun MainScreen(player: RadioPlayer) {
     val isPlaying by player.isPlaying.collectAsState()
     val currentQuality by player.currentQuality.collectAsState()
 
-    var songTitle by remember { mutableStateOf("Se încarcă piesa...") }
+    var songTitle by remember { mutableStateOf("Gata să asculți") }
 
-    // Preluare titlu piesă de pe serverul Shoutcast/Icecast la fiecare 5 secunde
+    // Preia piesă live la fiecare 5 secunde
     LaunchedEffect(Unit) {
         while (true) {
             try {
                 withContext(Dispatchers.IO) {
-                    val streamUrl = "https://live.altfelfm.ro:8120/stats?sid=1&json=1"
-                    val jsonText = URL(streamUrl).readText()
+                    val jsonText = URL("https://live.altfelfm.ro:8120/stats?sid=1&json=1").readText()
                     val json = JSONObject(jsonText)
                     if (json.has("songtitle")) {
                         songTitle = json.getString("songtitle")
-                    } else if (json.has("title")) {
-                        songTitle = json.getString("title")
                     }
                 }
             } catch (e: Exception) {
-                // Dacă serverul folosește Icecast clasic status-json.xsl
-                try {
-                    withContext(Dispatchers.IO) {
-                        val streamUrl = "https://live.altfelfm.ro:8120/status-json.xsl"
-                        val jsonText = URL(streamUrl).readText()
-                        val json = JSONObject(jsonText)
-                        val source = json.getJSONObject("icestats").get("source")
-                        if (source is JSONObject) {
-                            songTitle = source.optString("title", "Altfel FM Live")
-                        }
-                    }
-                } catch (ex: Exception) {
-                    if (songTitle == "Se încarcă piesa...") {
-                        songTitle = "Altfel FM - Live Stream"
-                    }
-                }
+                // Fallback direct
             }
             delay(5000)
         }
@@ -97,15 +83,14 @@ fun MainScreen(player: RadioPlayer) {
 
     var colorIndex by remember { mutableIntStateOf(0) }
     val colorPalettes = listOf(
-        listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)),
-        listOf(Color(0xFF2C3E50), Color(0xFF000000), Color(0xFF4CA1AF)),
-        listOf(Color(0xFF11998E), Color(0xFF38EF7D), Color(0xFF050505)),
-        listOf(Color(0xFF8A2387), Color(0xFFE94057), Color(0xFF121212))
+        listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)),
+        listOf(Color(0xFF1F1C2C), Color(0xFF928DAB), Color(0xFF101010)),
+        listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460))
     )
 
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
-            delay(6000)
+            delay(8000)
             colorIndex = (colorIndex + 1) % colorPalettes.size
         }
     }
@@ -122,99 +107,126 @@ fun MainScreen(player: RadioPlayer) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Altfel FM", fontWeight = FontWeight.Bold, color = Color.White) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF121212))
+                title = { 
+                    Text(
+                        "Altfel FM", 
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 24.sp,
+                        color = Color.White,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    ) 
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
-        }
+        },
+        containerColor = Color.Transparent
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(Brush.verticalGradient(listOf(startColor, endColor, Color.Black)))
-                .padding(20.dp),
+                .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Card Piesa Curenta Nativ
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0x33FFFFFF))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "ACUM CÂNTĂ",
-                        color = Color(0xFFFF0055),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = songTitle,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-
-            // Controale Player Nativ
+            // Player Circular Nativ
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                IconButton(
-                    onClick = { player.togglePlay() },
-                    modifier = Modifier
-                        .size(80.dp)
-                        .background(Color(0xFFFF0055), shape = RoundedCornerShape(40.dp))
+                Text(
+                    text = songTitle,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(220.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play/Pause",
-                        tint = Color.White,
-                        modifier = Modifier.size(48.dp)
+                    CircularAudioVisualizer(
+                        isPlaying = isPlaying,
+                        modifier = Modifier.fillMaxSize()
                     )
+
+                    IconButton(
+                        onClick = { player.togglePlay() },
+                        modifier = Modifier
+                            .size(110.dp)
+                            .background(Color(0xFFFF0055), shape = CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = Color.White,
+                            modifier = Modifier.size(60.dp)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Button(
                         onClick = { player.setQuality(StreamQuality.HIGH) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (currentQuality == StreamQuality.HIGH) Color(0xFFFF0055) else Color.DarkGray
-                        )
-                    ) { Text("328 kbps") }
+                            containerColor = if (currentQuality == StreamQuality.HIGH) Color(0xFFFF0055) else Color.White.copy(alpha = 0.2f)
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    ) { Text("328 kbps", fontWeight = FontWeight.Bold) }
 
                     Button(
                         onClick = { player.setQuality(StreamQuality.LOW) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (currentQuality == StreamQuality.LOW) Color(0xFFFF0055) else Color.DarkGray
-                        )
-                    ) { Text("128 kbps") }
+                            containerColor = if (currentQuality == StreamQuality.LOW) Color(0xFFFF0055) else Color.White.copy(alpha = 0.2f)
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    ) { Text("128 kbps", fontWeight = FontWeight.Bold) }
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                AudioVisualizer(
-                    isPlaying = isPlaying,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(70.dp)
-                )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            // Chat Izolat (Se ascund automat toate celelalte elemente web)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(top = 16.dp, bottom = 12.dp)
+                    .clip(RoundedCornerShape(24.dp)),
+                colors = CardDefaults.cardColors(containerColor = Color(0x22000000))
+            ) {
+                AndroidView(
+                    factory = { context ->
+                        WebView(context).apply {
+                            setBackgroundColor(0x00000000)
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    // Injectăm CSS ca să păstrăm exclusiv blocul de chat
+                                    evaluateJavascript(
+                                        """
+                                        (function() {
+                                            document.body.style.background = 'transparent';
+                                            var elementsToHide = document.querySelectorAll('header, footer, .player, .player-holder, .now-playing, .radio-player, img');
+                                            elementsToHide.forEach(function(el) { el.style.display = 'none'; });
+                                        })();
+                                        """.trimIndent(), null
+                                    )
+                                }
+                            }
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            loadUrl("https://altfelfm.ro/chat")
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }
