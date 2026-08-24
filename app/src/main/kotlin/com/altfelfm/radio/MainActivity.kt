@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.altfelfm.radio.audio.AudioVisualizer
 import com.altfelfm.radio.audio.RadioPlayer
 import com.altfelfm.radio.audio.StreamQuality
 import kotlinx.coroutines.delay
@@ -53,8 +54,8 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(player: RadioPlayer) {
     val isPlaying by player.isPlaying.collectAsState()
     val currentQuality by player.currentQuality.collectAsState()
+    val audioSessionId by player.audioSessionId.collectAsState()
 
-    // Grafica dinamica / Schimbare culori fundal la fiecare interval de timp
     var colorIndex by remember { mutableIntStateOf(0) }
     val colorPalettes = listOf(
         listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)),
@@ -65,7 +66,7 @@ fun MainScreen(player: RadioPlayer) {
 
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
-            delay(8000)
+            delay(6000)
             colorIndex = (colorIndex + 1) % colorPalettes.size
         }
     }
@@ -92,11 +93,11 @@ fun MainScreen(player: RadioPlayer) {
                 .fillMaxSize()
                 .padding(padding)
                 .background(Brush.verticalGradient(listOf(startColor, endColor, Color.Black)))
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Player Controls & Quality Selector
+            // Player Top Section
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -104,58 +105,63 @@ fun MainScreen(player: RadioPlayer) {
                 Text(
                     text = if (isPlaying) "În Redare..." else "Oprit",
                     color = Color.White,
-                    fontSize = 20.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Play / Pause Button
                 IconButton(
                     onClick = { player.togglePlay() },
                     modifier = Modifier
-                        .size(72.dp)
-                        .background(Color(0xFFFF0055), shape = RoundedCornerShape(36.dp))
+                        .size(64.dp)
+                        .background(Color(0xFFFF0055), shape = RoundedCornerShape(32.dp))
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = "Play/Pause",
                         tint = Color.White,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(36.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Butoane Calitate 328kbps si 128kbps
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(
                         onClick = { player.setQuality(StreamQuality.HIGH) },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (currentQuality == StreamQuality.HIGH) Color(0xFFFF0055) else Color.DarkGray
                         )
-                    ) {
-                        Text("328 kbps")
-                    }
+                    ) { Text("328 kbps") }
 
                     Button(
                         onClick = { player.setQuality(StreamQuality.LOW) },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (currentQuality == StreamQuality.LOW) Color(0xFFFF0055) else Color.DarkGray
                         )
-                    ) {
-                        Text("128 kbps")
-                    }
+                    ) { Text("128 kbps") }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Visualizer-ul Audio Original
+                if (audioSessionId != 0) {
+                    AndroidView(
+                        factory = { context -> AudioVisualizer(context) },
+                        update = { visualizer -> visualizer.setAudioSessionId(audioSessionId) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(80.dp)
+                    )
                 }
             }
 
-            // Widget Chat Compact (Max Height 260dp, nu acopera tot ecranul)
+            // Chat Fitted WebView
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(260.dp)
+                    .weight(1f)
                     .clip(RoundedCornerShape(16.dp)),
                 colors = CardDefaults.cardColors(containerColor = Color(0xAA1E1E1E))
             ) {
@@ -164,6 +170,8 @@ fun MainScreen(player: RadioPlayer) {
                         WebView(context).apply {
                             webViewClient = WebViewClient()
                             settings.javaScriptEnabled = true
+                            settings.useWideViewPort = true
+                            settings.loadWithOverviewMode = true
                             loadUrl("https://altfelfm.ro/chat")
                         }
                     },
