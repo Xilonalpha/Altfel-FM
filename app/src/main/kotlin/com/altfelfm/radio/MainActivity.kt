@@ -143,16 +143,14 @@ fun MainScreen(player: RadioPlayer) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Apelăm corect Visualizer-ul Composable
                 AudioVisualizer(
                     isPlaying = isPlaying,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(80.dp)
+                        .height(60.dp)
                 )
             }
 
-            // Widget Chat optimizat
             Card(
                 modifier = Modifier
                     .fillMaxWidth()

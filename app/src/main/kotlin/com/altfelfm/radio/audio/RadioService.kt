@@ -15,7 +15,7 @@ class RadioService : Service() {
     private val binder = LocalBinder()
 
     inner class LocalBinder : Binder() {
-        getService(): RadioService = this@RadioService
+        fun getService(): RadioService = this@RadioService
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
@@ -34,14 +34,14 @@ class RadioService : Service() {
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            manager?.createNotificationChannel(channel)
         }
     }
 
     private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, "radio_channel")
             .setContentTitle("Altfel FM")
-            .setContentText("Redare în fundal active...")
+            .setContentText("Redare în fundal...")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
