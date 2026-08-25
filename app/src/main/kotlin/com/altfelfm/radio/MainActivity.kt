@@ -1,6 +1,7 @@
 package com.altfelfm.radio
 
 import android.os.Bundle
+import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
@@ -125,11 +126,11 @@ fun MainScreen(player: RadioPlayer) {
                 .fillMaxSize()
                 .padding(padding)
                 .background(Brush.verticalGradient(listOf(startColor, endColor, Color.Black)))
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Partea de Sus: Playerul audio complet cu buton de play/pause și calitate
+            // Player Nativ Android & Visualizer
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -137,18 +138,18 @@ fun MainScreen(player: RadioPlayer) {
                 Text(
                     text = songTitle,
                     color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     modifier = Modifier.padding(horizontal = 10.dp)
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(160.dp)
+                    modifier = Modifier.size(170.dp)
                 ) {
                     CircularAudioVisualizer(
                         isPlaying = isPlaying,
@@ -159,58 +160,81 @@ fun MainScreen(player: RadioPlayer) {
                     IconButton(
                         onClick = { player.togglePlay() },
                         modifier = Modifier
-                            .size(80.dp)
+                            .size(76.dp)
                             .background(Color(0xFFFF0055), shape = CircleShape)
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = "Play/Pause",
                             tint = Color.White,
-                            modifier = Modifier.size(45.dp)
+                            modifier = Modifier.size(42.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(
                         onClick = { player.setQuality(StreamQuality.HIGH) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (currentQuality == StreamQuality.HIGH) Color(0xFFFF0055) else Color.White.copy(alpha = 0.2f)
+                            containerColor = if (currentQuality == StreamQuality.HIGH) Color(0xFFFF0055) else Color.White.copy(alpha = 0.15f)
                         ),
                         shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                     ) { Text("328 kbps", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
 
                     Button(
                         onClick = { player.setQuality(StreamQuality.LOW) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (currentQuality == StreamQuality.LOW) Color(0xFFFF0055) else Color.White.copy(alpha = 0.2f)
+                            containerColor = if (currentQuality == StreamQuality.LOW) Color(0xFFFF0055) else Color.White.copy(alpha = 0.15f)
                         ),
                         shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                     ) { Text("128 kbps", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                 }
             }
 
-            // Partea de Jos: WebView pentru chat care permite interacțiunea completă
+            // Container Chat WebView Nativizat (Fără Scrollbars & Fără Player Web)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(top = 10.dp, bottom = 8.dp)
-                    .clip(RoundedCornerShape(20.dp)),
-                colors = CardDefaults.cardColors(containerColor = Color(0x33000000))
+                    .padding(top = 12.dp, bottom = 12.dp)
+                    .clip(RoundedCornerShape(24.dp)),
+                colors = CardDefaults.cardColors(containerColor = Color(0x22000000))
             ) {
                 AndroidView(
                     factory = { context ->
                         WebView(context).apply {
                             setBackgroundColor(0x00000000)
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            settings.loadsImagesAutomatically = true
-                            settings.javaScriptCanOpenWindowsAutomatically = true
+                            isVerticalScrollBarEnabled = false
+                            isHorizontalScrollBarEnabled = false
+                            overScrollMode = View.OVER_SCROLL_NEVER
+
+                            settings.apply {
+                                javaScriptEnabled = true
+                                domStorageEnabled = true
+                                loadsImagesAutomatically = true
+                                javaScriptCanOpenWindowsAutomatically = true
+                                mediaPlaybackRequiresUserGesture = false
+                            }
+
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    // Injectare CSS pentru a ascunde elementele audio/scroll inutil din web
+                                    view?.evaluateJavascript(
+                                        """
+                                        (function() {
+                                            var style = document.createElement('style');
+                                            style.innerHTML = '::-webkit-scrollbar { display: none; } audio, video, .player-container { display: none !important; }';
+                                            document.head.appendChild(style);
+                                        })();
+                                        """.trimIndent(), null
+                                    )
+                                }
+                            }
                             loadUrl("https://altfelfm.ro/chat")
                         }
                     },
