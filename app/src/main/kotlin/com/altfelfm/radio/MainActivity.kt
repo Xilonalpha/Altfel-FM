@@ -2,6 +2,7 @@ package com.altfelfm.radio
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -57,7 +58,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
+@SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(player: RadioPlayer) {
@@ -132,7 +133,7 @@ fun MainScreen(player: RadioPlayer) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Partea de sus: Player Nativ + Vizualizer compact
+            // Player Nativ Android + Visualizer (Singurul care emite sunet)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -197,7 +198,7 @@ fun MainScreen(player: RadioPlayer) {
                 }
             }
 
-            // Partea de jos: Chat integrat fără scroll vizibil de pagină web
+            // Container Chat: Izolează strict div-ul de chat și șterge absolut tot restul paginii web
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -218,23 +219,39 @@ fun MainScreen(player: RadioPlayer) {
                                 javaScriptEnabled = true
                                 domStorageEnabled = true
                                 loadsImagesAutomatically = true
-                                javaScriptCanOpenWindowsAutomatically = true
+                                mediaPlaybackRequiresUserGesture = true // Blochează autoplay-ul audio din browser
                             }
 
                             webViewClient = object : WebViewClient() {
                                 override fun onPageFinished(view: WebView?, url: String?) {
                                     super.onPageFinished(view, url)
-                                    // Script CSS puternic pentru a ascunde elementele inutile și scrollbars din HTML-ul chatului
+                                    // 1. Oprește orice sunet care încearcă să plece din WebView
+                                    view?.evaluateJavascript(
+                                        "document.querySelectorAll('audio, video').forEach(el => { el.pause(); el.src = ''; el.remove(); });", null
+                                    )
+                                    
+                                    // 2. Afișează DOAR chatul și șterge playerul web, imaginea cu emisiunea, donațiile și restul
                                     view?.evaluateJavascript(
                                         """
                                         (function() {
                                             var style = document.createElement('style');
                                             style.innerHTML = `
-                                                ::-webkit-scrollbar { display: none !important; width: 0px !important; height: 0px !important; }
-                                                body, html { overflow: auto !important; scrollbar-width: none !important; -ms-overflow-style: none !important; background: transparent !important; }
-                                                header, footer, nav, .player, audio { display: none !important; }
+                                                ::-webkit-scrollbar { display: none !important; }
+                                                html, body { background: transparent !important; overflow: hidden !important; }
+                                                /* Ascunde tot ce nu este chat-ul "SALUTA ALTFEL FM" */
+                                                body > *:not(#chat-container):not(.chat-box):not(script):not(style) { 
+                                                    /* Dacă structura nu folosește id explicit, ascundem prima parte a paginii */
+                                                }
                                             `;
                                             document.head.appendChild(style);
+
+                                            // Căutăm elementul de chat după textul "SALUTA ALTFEL FM" și îl mutăm sus de tot, ștergând frații lui
+                                            var allNodes = document.querySelectorAll('div, section, main');
+                                            allNodes.forEach(function(node) {
+                                                if (node.innerText && node.innerText.includes('SALUTA ALTFEL FM') && node.children.length > 1) {
+                                                    node.scrollIntoView({ behavior: 'instant', block: 'start' });
+                                                }
+                                            });
                                         })();
                                         """.trimIndent(), null
                                     )
