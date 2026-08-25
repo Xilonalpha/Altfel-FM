@@ -74,7 +74,6 @@ fun MainScreen(player: RadioPlayer) {
                     }
                 }
             } catch (e: Exception) {
-                // Păstrează titlul curent la eroare de rețea
             }
             delay(5000)
         }
@@ -130,7 +129,6 @@ fun MainScreen(player: RadioPlayer) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Zona Player Nativ
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -192,7 +190,6 @@ fun MainScreen(player: RadioPlayer) {
                 }
             }
 
-            // Zona Chat Nativizată (Ștergem tot site-ul, lăsând strict containerul de chat)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -207,32 +204,27 @@ fun MainScreen(player: RadioPlayer) {
                             setBackgroundColor(0x00000000)
                             webViewClient = object : WebViewClient() {
                                 override fun onPageFinished(view: WebView?, url: String?) {
-                                    // Injectare CSS/JS pentru a elimina playerul albastru și tot restul site-ului
                                     evaluateJavascript(
                                         """
                                         (function() {
                                             var css = `
-                                                body { background: transparent !important; }
-                                                audio, iframe, .player, .radio-player, .player-holder, 
-                                                .buttons, .btn, a[href*="m3u"], a[href*="mp3"], 
-                                                header, footer, img, .grila, .about { display: none !important; }
-                                                #chat, .chat-container, .chat-box, div[class*="chat"] { 
+                                                body { background: transparent !important; margin: 0 !important; padding: 0 !important; }
+                                                div, section, header, footer, article, main { background: transparent !important; }
+                                                .player, .player-holder, .now-playing, .radio-player, .listeners, .schedule, .grila, a, button { display: none !important; }
+                                                iframe[src*="chat"], .chat-frame, #chat { 
                                                     display: block !important; 
-                                                    width: 100% !important; 
-                                                    background: transparent !important; 
+                                                    position: fixed !important;
+                                                    top: 0 !important;
+                                                    left: 0 !important;
+                                                    width: 100vw !important;
+                                                    height: 100vh !important;
+                                                    z-index: 999999 !important;
                                                 }
                                             `;
                                             var style = document.createElement('style');
                                             style.type = 'text/css';
                                             style.appendChild(document.createTextNode(css));
                                             document.head.appendChild(style);
-
-                                            // Oprim orice element audio nativ din WebView
-                                            var audios = document.getElementsByTagName('audio');
-                                            for(var i=0; i<audios.length; i++){
-                                                audios[i].pause();
-                                                audios[i].src = "";
-                                            }
                                         })();
                                         """.trimIndent(), null
                                     )
