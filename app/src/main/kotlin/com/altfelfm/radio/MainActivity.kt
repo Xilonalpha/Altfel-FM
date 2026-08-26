@@ -132,7 +132,7 @@ fun MainScreen(player: RadioPlayer) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Player Nativ
+            // Player Nativ Android + Visualizer
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -197,7 +197,7 @@ fun MainScreen(player: RadioPlayer) {
                 }
             }
 
-            // WebView Chat filtrat precis
+            // Chat WebView corectat
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -227,31 +227,37 @@ fun MainScreen(player: RadioPlayer) {
                                     view?.evaluateJavascript(
                                         """
                                         (function() {
-                                            // 1. Oprirea audio web
-                                            document.querySelectorAll('audio, video').forEach(el => { el.pause(); el.src = ''; el.remove(); });
+                                            // 1. Oprește sunetul web pentru a folosi playerul nativ Android
+                                            document.querySelectorAll('audio, video').forEach(el => { el.pause(); el.src = ''; });
 
-                                            // 2. Ascundere scrollbars
+                                            // 2. Ascunde barul de scroll
                                             var style = document.createElement('style');
                                             style.innerHTML = '::-webkit-scrollbar { display: none !important; } html, body { background: transparent !important; }';
                                             document.head.appendChild(style);
 
-                                            // 3. Eliminare doar Revolut și Bitcoin (fără a atinge chat-ul)
-                                            var links = document.querySelectorAll('a, div, p, span');
-                                            links.forEach(function(el) {
-                                                var html = el.innerHTML || '';
-                                                if ((html.includes('Revolut') || html.includes('bitcoin')) && !html.includes('SALUTA ALTFEL FM')) {
-                                                    var container = el.closest('.col-md-6, .col-6, .card, div[class*="support"]');
-                                                    if (container) {
-                                                        container.style.display = 'none';
-                                                    } else {
-                                                        el.style.display = 'none';
-                                                    }
-                                                }
-                                                
-                                                // 4. Curățare footer (Leo1Romania, Pescar Amator, Dap Design, Call, Mail)
-                                                var txt = el.innerText || '';
-                                                if (txt.includes('Leo1Romania') || txt.includes('Pescar Amator') || txt.includes('Dap Design') || txt === 'Call' || txt === 'Mail') {
+                                            // 3. Căutăm exact cardurile Revolut și Bitcoin și le ascundem
+                                            var allDivs = document.querySelectorAll('div');
+                                            allDivs.forEach(function(el) {
+                                                var text = el.innerText || '';
+                                                if ((text.includes('Revolut') || text.includes('bitcoin')) && text.includes('Susține prin')) {
                                                     el.style.display = 'none';
+                                                }
+                                            });
+
+                                            // 4. Ascundem link-urile secundare din footer (Leo1Romania, Pescar Amator, Dap Design, iconițe)
+                                            var footerLinks = document.querySelectorAll('a, span');
+                                            footerLinks.forEach(function(el) {
+                                                var text = el.innerText || '';
+                                                if (text.includes('Leo1Romania') || text.includes('Pescar Amator') || text.includes('Dap Design')) {
+                                                    el.style.display = 'none';
+                                                }
+                                            });
+
+                                            // 5. Ne asigurăm că chat-ul este în vizor și vizibil
+                                            allDivs.forEach(function(el) {
+                                                if (el.innerText && el.innerText.includes('SALUTA ALTFEL FM')) {
+                                                    el.style.display = 'block';
+                                                    el.scrollIntoView({ behavior: 'instant', block: 'start' });
                                                 }
                                             });
                                         })();
