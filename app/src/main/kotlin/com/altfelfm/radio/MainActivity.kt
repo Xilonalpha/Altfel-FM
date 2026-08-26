@@ -2,7 +2,6 @@ package com.altfelfm.radio
 
 import android.annotation.SuppressLint
 import android.os.Bundle
-import android.view.MotionEvent
 import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -58,7 +57,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
+@SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(player: RadioPlayer) {
@@ -67,6 +66,7 @@ fun MainScreen(player: RadioPlayer) {
 
     var songTitle by remember { mutableStateOf("Gata să asculți") }
 
+    // Preia automat titlul piesei din API
     LaunchedEffect(Unit) {
         while (true) {
             try {
@@ -133,7 +133,7 @@ fun MainScreen(player: RadioPlayer) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Player Nativ Android + Visualizer (Singurul care emite sunet)
+            // Player Audio NATIV Android
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -161,7 +161,9 @@ fun MainScreen(player: RadioPlayer) {
                     )
 
                     IconButton(
-                        onClick = { player.togglePlay() },
+                        onClick = { 
+                            player.togglePlay() 
+                        },
                         modifier = Modifier
                             .size(70.dp)
                             .background(Color(0xFFFF0055), shape = CircleShape)
@@ -198,7 +200,7 @@ fun MainScreen(player: RadioPlayer) {
                 }
             }
 
-            // Container Chat: Izolează strict div-ul de chat și șterge absolut tot restul paginii web
+            // WebView Chat filtrat (fără Revolut, Fără Bitcoin, Fără link-urile din footer)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -219,37 +221,50 @@ fun MainScreen(player: RadioPlayer) {
                                 javaScriptEnabled = true
                                 domStorageEnabled = true
                                 loadsImagesAutomatically = true
-                                mediaPlaybackRequiresUserGesture = true // Blochează autoplay-ul audio din browser
+                                mediaPlaybackRequiresUserGesture = true
                             }
 
                             webViewClient = object : WebViewClient() {
                                 override fun onPageFinished(view: WebView?, url: String?) {
                                     super.onPageFinished(view, url)
-                                    // 1. Oprește orice sunet care încearcă să plece din WebView
-                                    view?.evaluateJavascript(
-                                        "document.querySelectorAll('audio, video').forEach(el => { el.pause(); el.src = ''; el.remove(); });", null
-                                    )
-                                    
-                                    // 2. Afișează DOAR chatul și șterge playerul web, imaginea cu emisiunea, donațiile și restul
+                                    // Script JS care elimină din DOM elementele nedorite (Revolut, Bitcoin, linkuri autor)
                                     view?.evaluateJavascript(
                                         """
                                         (function() {
+                                            // 1. Oprește orice audio din browser
+                                            document.querySelectorAll('audio, video').forEach(el => { el.pause(); el.src = ''; el.remove(); });
+
+                                            // 2. CSS pentru a ascunde Revolut, Bitcoin și scrollbar
                                             var style = document.createElement('style');
                                             style.innerHTML = `
                                                 ::-webkit-scrollbar { display: none !important; }
-                                                html, body { background: transparent !important; overflow: hidden !important; }
-                                                /* Ascunde tot ce nu este chat-ul "SALUTA ALTFEL FM" */
-                                                body > *:not(#chat-container):not(.chat-box):not(script):not(style) { 
-                                                    /* Dacă structura nu folosește id explicit, ascundem prima parte a paginii */
-                                                }
+                                                html, body { background: transparent !important; }
+                                                audio, video, .player-container { display: none !important; }
                                             `;
                                             document.head.appendChild(style);
 
-                                            // Căutăm elementul de chat după textul "SALUTA ALTFEL FM" și îl mutăm sus de tot, ștergând frații lui
-                                            var allNodes = document.querySelectorAll('div, section, main');
-                                            allNodes.forEach(function(node) {
-                                                if (node.innerText && node.innerText.includes('SALUTA ALTFEL FM') && node.children.length > 1) {
-                                                    node.scrollIntoView({ behavior: 'instant', block: 'start' });
+                                            // 3. Șterge blocurile de donație (Revolut / Bitcoin)
+                                            var elements = document.querySelectorAll('*');
+                                            elements.forEach(function(el) {
+                                                var text = el.innerText || '';
+                                                if ((text.includes('Revolut') || text.includes('bitcoin')) && el.children.length <= 2) {
+                                                    var parent = el.closest('div');
+                                                    if (parent && parent.innerText.includes('Susține prin')) {
+                                                        parent.style.display = 'none';
+                                                    } else {
+                                                        el.style.display = 'none';
+                                                    }
+                                                }
+                                            });
+
+                                            // 4. Curăță footer-ul: Elimină Leo1Romania, Pescar Amator, Dap Design, Call, Mail
+                                            var footerElements = document.querySelectorAll('footer, div, span, p, a');
+                                            footerElements.forEach(function(el) {
+                                                var txt = el.innerText || '';
+                                                if (txt.includes('Leo1Romania') || txt.includes('Pescar Amator') || txt.includes('Dap Design') || txt.includes('Call') || txt.includes('Mail')) {
+                                                    if (el.tagName === 'A' || el.tagName === 'SPAN' || el.tagName === 'I') {
+                                                        el.style.display = 'none';
+                                                    }
                                                 }
                                             });
                                         })();
