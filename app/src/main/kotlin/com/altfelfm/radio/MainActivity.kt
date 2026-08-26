@@ -66,7 +66,6 @@ fun MainScreen(player: RadioPlayer) {
 
     var songTitle by remember { mutableStateOf("Gata să asculți") }
 
-    // Preia automat titlul piesei din API
     LaunchedEffect(Unit) {
         while (true) {
             try {
@@ -133,7 +132,7 @@ fun MainScreen(player: RadioPlayer) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Player Audio NATIV Android
+            // Player Nativ
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -161,9 +160,7 @@ fun MainScreen(player: RadioPlayer) {
                     )
 
                     IconButton(
-                        onClick = { 
-                            player.togglePlay() 
-                        },
+                        onClick = { player.togglePlay() },
                         modifier = Modifier
                             .size(70.dp)
                             .background(Color(0xFFFF0055), shape = CircleShape)
@@ -200,7 +197,7 @@ fun MainScreen(player: RadioPlayer) {
                 }
             }
 
-            // WebView Chat filtrat (fără Revolut, Fără Bitcoin, Fără link-urile din footer)
+            // WebView Chat filtrat precis
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -227,44 +224,34 @@ fun MainScreen(player: RadioPlayer) {
                             webViewClient = object : WebViewClient() {
                                 override fun onPageFinished(view: WebView?, url: String?) {
                                     super.onPageFinished(view, url)
-                                    // Script JS care elimină din DOM elementele nedorite (Revolut, Bitcoin, linkuri autor)
                                     view?.evaluateJavascript(
                                         """
                                         (function() {
-                                            // 1. Oprește orice audio din browser
+                                            // 1. Oprirea audio web
                                             document.querySelectorAll('audio, video').forEach(el => { el.pause(); el.src = ''; el.remove(); });
 
-                                            // 2. CSS pentru a ascunde Revolut, Bitcoin și scrollbar
+                                            // 2. Ascundere scrollbars
                                             var style = document.createElement('style');
-                                            style.innerHTML = `
-                                                ::-webkit-scrollbar { display: none !important; }
-                                                html, body { background: transparent !important; }
-                                                audio, video, .player-container { display: none !important; }
-                                            `;
+                                            style.innerHTML = '::-webkit-scrollbar { display: none !important; } html, body { background: transparent !important; }';
                                             document.head.appendChild(style);
 
-                                            // 3. Șterge blocurile de donație (Revolut / Bitcoin)
-                                            var elements = document.querySelectorAll('*');
-                                            elements.forEach(function(el) {
-                                                var text = el.innerText || '';
-                                                if ((text.includes('Revolut') || text.includes('bitcoin')) && el.children.length <= 2) {
-                                                    var parent = el.closest('div');
-                                                    if (parent && parent.innerText.includes('Susține prin')) {
-                                                        parent.style.display = 'none';
+                                            // 3. Eliminare doar Revolut și Bitcoin (fără a atinge chat-ul)
+                                            var links = document.querySelectorAll('a, div, p, span');
+                                            links.forEach(function(el) {
+                                                var html = el.innerHTML || '';
+                                                if ((html.includes('Revolut') || html.includes('bitcoin')) && !html.includes('SALUTA ALTFEL FM')) {
+                                                    var container = el.closest('.col-md-6, .col-6, .card, div[class*="support"]');
+                                                    if (container) {
+                                                        container.style.display = 'none';
                                                     } else {
                                                         el.style.display = 'none';
                                                     }
                                                 }
-                                            });
-
-                                            // 4. Curăță footer-ul: Elimină Leo1Romania, Pescar Amator, Dap Design, Call, Mail
-                                            var footerElements = document.querySelectorAll('footer, div, span, p, a');
-                                            footerElements.forEach(function(el) {
+                                                
+                                                // 4. Curățare footer (Leo1Romania, Pescar Amator, Dap Design, Call, Mail)
                                                 var txt = el.innerText || '';
-                                                if (txt.includes('Leo1Romania') || txt.includes('Pescar Amator') || txt.includes('Dap Design') || txt.includes('Call') || txt.includes('Mail')) {
-                                                    if (el.tagName === 'A' || el.tagName === 'SPAN' || el.tagName === 'I') {
-                                                        el.style.display = 'none';
-                                                    }
+                                                if (txt.includes('Leo1Romania') || txt.includes('Pescar Amator') || txt.includes('Dap Design') || txt === 'Call' || txt === 'Mail') {
+                                                    el.style.display = 'none';
                                                 }
                                             });
                                         })();
