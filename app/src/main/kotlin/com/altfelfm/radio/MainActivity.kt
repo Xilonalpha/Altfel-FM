@@ -132,7 +132,7 @@ fun MainScreen(player: RadioPlayer) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Player Nativ Android + Visualizer
+            // Player Nativ
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -197,7 +197,7 @@ fun MainScreen(player: RadioPlayer) {
                 }
             }
 
-            // Chat WebView corectat
+            // WebView Chat - Curățat prin CSS direct (Fără risc să dispară chatul)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -217,52 +217,50 @@ fun MainScreen(player: RadioPlayer) {
                             settings.apply {
                                 javaScriptEnabled = true
                                 domStorageEnabled = true
-                                loadsImagesAutomatically = true
-                                mediaPlaybackRequiresUserGesture = true
+                                cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE // Forțăm să nu folosească cache vechi
                             }
 
                             webViewClient = object : WebViewClient() {
                                 override fun onPageFinished(view: WebView?, url: String?) {
                                     super.onPageFinished(view, url)
-                                    view?.evaluateJavascript(
-                                        """
-                                        (function() {
-                                            // 1. Oprește sunetul web pentru a folosi playerul nativ Android
-                                            document.querySelectorAll('audio, video').forEach(el => { el.pause(); el.src = ''; });
-
-                                            // 2. Ascunde barul de scroll
+                                    // Injectăm CSS direct care ascunde Revolut/Bitcoin după structura HTML Bootstrap a paginii
+                                    val hideCss = """
+                                        javascript:(function() {
                                             var style = document.createElement('style');
-                                            style.innerHTML = '::-webkit-scrollbar { display: none !important; } html, body { background: transparent !important; }';
+                                            style.type = 'text/css';
+                                            style.innerHTML = '
+                                                ::-webkit-scrollbar { display: none !important; }
+                                                html, body { background: transparent !important; }
+                                                
+                                                /* Ascunde doar primele două carduri cu donații (Revolut & Bitcoin) */
+                                                .row > .col-md-6:has(img[src*="revolut"]),
+                                                .row > .col-md-6:has(img[src*="bitcoin"]),
+                                                div[class*="revolut"], div[class*="bitcoin"] {
+                                                    display: none !important;
+                                                }
+                                                
+                                                /* Alternativă prin selectori generali de text */
+                                                a[href*="revolut"], a[href*="bitcoin"] {
+                                                    display: none !important;
+                                                }
+                                            ';
                                             document.head.appendChild(style);
 
-                                            // 3. Căutăm exact cardurile Revolut și Bitcoin și le ascundem
-                                            var allDivs = document.querySelectorAll('div');
-                                            allDivs.forEach(function(el) {
-                                                var text = el.innerText || '';
-                                                if ((text.includes('Revolut') || text.includes('bitcoin')) && text.includes('Susține prin')) {
-                                                    el.style.display = 'none';
+                                            // Oprim doar elementele audio ale site-ului web
+                                            document.querySelectorAll('audio, video').forEach(el => { el.pause(); el.src = ''; });
+                                            
+                                            // Filtrare suplimentară pe baza textului din carduri
+                                            var divs = document.getElementsByTagName('div');
+                                            for(var i=0; i<divs.length; i++) {
+                                                var t = divs[i].innerText || '';
+                                                if((t.includes('Revolut') || t.includes('bitcoin')) && !t.includes('SALUTA ALTFEL FM')) {
+                                                    divs[i].style.cssText = 'display: none !important;';
                                                 }
-                                            });
-
-                                            // 4. Ascundem link-urile secundare din footer (Leo1Romania, Pescar Amator, Dap Design, iconițe)
-                                            var footerLinks = document.querySelectorAll('a, span');
-                                            footerLinks.forEach(function(el) {
-                                                var text = el.innerText || '';
-                                                if (text.includes('Leo1Romania') || text.includes('Pescar Amator') || text.includes('Dap Design')) {
-                                                    el.style.display = 'none';
-                                                }
-                                            });
-
-                                            // 5. Ne asigurăm că chat-ul este în vizor și vizibil
-                                            allDivs.forEach(function(el) {
-                                                if (el.innerText && el.innerText.includes('SALUTA ALTFEL FM')) {
-                                                    el.style.display = 'block';
-                                                    el.scrollIntoView({ behavior: 'instant', block: 'start' });
-                                                }
-                                            });
-                                        })();
-                                        """.trimIndent(), null
-                                    )
+                                            }
+                                        })()
+                                    """.trimIndent().replace("\n", "")
+                                    
+                                    view?.loadUrl(hideCss)
                                 }
                             }
                             loadUrl("https://altfelfm.ro/chat")
